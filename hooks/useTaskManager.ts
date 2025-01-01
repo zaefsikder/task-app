@@ -9,6 +9,7 @@ import {
 } from "@/types/taskManager";
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const FUNCTION_ENDPOINT = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-task-with-ai`;
 
 interface UseTaskManagerReturn
   extends TaskState,
@@ -174,15 +175,23 @@ export function useTaskManager(taskId?: string): UseTaskManagerReturn {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // TODO: Update with real user_id
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert({ title, description, user_id: session!.user.id })
-        .select();
+      const response = await fetch(FUNCTION_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session!.access_token}`,
+        },
+        body: JSON.stringify({ title, description }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create task");
+      }
 
-      const taskData = data![0];
+      const taskData = await response.json();
+      if (!taskData) throw new Error("No data returned from server");
+
       setTasks([taskData, ...tasks]);
       setError(null);
       return taskData;

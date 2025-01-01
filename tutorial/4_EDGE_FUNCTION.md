@@ -138,3 +138,24 @@ const completion = await openai.chat.completions.create({
 Deploy the function again. Run the tests. They should now pass.
 
 If you need to debug your functions, you can find metrics and logs in your Supabase console. Go to **Edge Functions > [Your Function] > Logs** or **Invocations**.
+
+## Call Edge Function From App
+
+Finally, to wire it up with our app's UI, let's just update the client code to call this edge function instead of calling the database directly.
+
+See `hooks/useTaskManager.ts` for full code update:
+
+```tsx
+const FUNCTION_ENDPOINT = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-task-with-ai`;
+
+const response = await fetch(FUNCTION_ENDPOINT, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session!.access_token}`,
+    },
+    body: JSON.stringify({ title, description }),
+});
+```
+
+Your local development server should how use this edge function to create tasks, and they should have automatic AI labels.
