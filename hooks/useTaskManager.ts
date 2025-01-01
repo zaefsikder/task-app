@@ -8,6 +8,8 @@ import {
   TasksOperations,
 } from "@/types/taskManager";
 
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
 interface UseTaskManagerReturn
   extends TaskState,
     TasksState,
@@ -89,11 +91,57 @@ export function useTaskManager(taskId?: string): UseTaskManagerReturn {
   };
 
   const uploadImage = async (file: File) => {
-    console.log("TODO: Implement uploadImage with:", file.name);
+    try {
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error("File size must be less than 1MB");
+      }
+
+      if (!task) throw new Error("No task found");
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${task.user_id}/${task.task_id}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("task-attachments")
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: file.type,
+          duplex: "half",
+          headers: {
+            "content-length": file.size.toString(),
+          },
+        });
+
+      if (uploadError) throw uploadError;
+
+      const updatedTask = { ...task, image_url: fileName };
+      setTask(updatedTask);
+      await saveTask(updatedTask);
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   const removeImage = async () => {
-    console.log("TODO: Implement removeImage");
+    try {
+      if (!task?.image_url) throw new Error("No image to remove");
+
+      const fileName = task.image_url;
+      const { error: storageError } = await supabase.storage
+        .from("task-attachments")
+        .remove([fileName]);
+
+      if (storageError) throw storageError;
+
+      const updatedTask = { ...task, image_url: null };
+      setTask(updatedTask);
+      await saveTask(updatedTask);
+    } catch (error: any) {
+      console.error("Error removing image:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   // Task list operations

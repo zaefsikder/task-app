@@ -41,18 +41,18 @@ using (bucket_id = 'task-attachments');
 -- Security policy: Users can upload their own attachments
 create policy "Users can upload their own attachments"
 on storage.objects for insert
+to authenticated
 with check (
-  bucket_id = 'task-attachments' 
-  and auth.role() = 'authenticated'
+  bucket_id = 'task-attachments'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
 -- Security policy: Users can delete their own attachments
 create policy "Users can delete their own attachments"
 on storage.objects for delete
+to authenticated
 using (
   bucket_id = 'task-attachments'
-  and auth.role() = 'authenticated'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 

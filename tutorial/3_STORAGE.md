@@ -79,3 +79,58 @@ supabase db reset --linked
 ```
 
 In production, you probably want to be careful with any kind of delete/removal operation (and likely avoid them altogether).
+
+## Implement Storage Hooks
+
+Now back in `hooks/useTaskManager.ts`, we can implement the logic for the image upload:
+
+```js
+// Already enforced in the backend, so this is second layer.
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
+// Implement these hooks.
+const uploadImage = async (file: File) => { ... }
+const removeImage = async () => { ... }
+```
+
+Here is how we use the Supabase client to upload the image directly.
+
+```tsx
+await supabase.storage.from("task-attachments").upload(fileName, file, {
+  upsert: true,
+  contentType: file.type,
+  duplex: "half",
+  headers: {
+    "content-length": file.size.toString(),
+  },
+});
+```
+
+We use the user's ID and the task ID as part of the image path naming convention. This also lets us enforce security on the images.
+
+```sql
+with check (
+  bucket_id = 'task-attachments'
+  and auth.role() = 'authenticated'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+```
+
+Finally, for our Next.JS app to be able to display the images, we need to update `images.remotePatterns` in our `next.config.mjs` file.
+
+```js
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        // This becomes "[your-project-id].supabase.co"
+        hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
+        pathname: "**",
+      },
+    ],
+  },
+};
+```
+
+Now, on your development server, you should be able to upload, view and remove images. You should also verify that images are deleted when its parent task is deleted.
