@@ -141,3 +141,85 @@ npm run dev
 Go to http://localhost:3000/dashboard and play around with creating/updating tasks.
 
 On your Supabase dashboard, you should also now see your tables and your data: https://supabase.com/dashboard/project/[your-project-id]/editor
+
+## Automated Tests (Jest)
+
+### Setting Up Jest
+
+Install Jest (unit testing framework) and its supporting types.
+
+```sh
+npm install --save-dev jest @types/jest ts-jest
+```
+
+Next, we'll need a way to configure Jest as well—specifically to have the environment variables so that it can set up a Supabase client for the tests.
+
+1. Create a copy of `.env.local` and call it `.env.test.local`.
+2. Create (or update) the Jest configuration and setup scripts to load in those variables. Refer to `jest.config.js` and `jest.setup.js` in this commit to see the code.
+
+The main part are these:
+
+```js
+// In jest.config.js
+setupFiles: ["<rootDir>/jest.setup.js"];
+
+// In jest.setup.js
+dotenv.config({ path: path.resolve(process.cwd(), ".env.test.local") });
+```
+
+### Writing a Test Suite
+
+Our first integration test will be implemented in `tests/integration/1_task_crud.test.ts`. If you are new to testing, read here to learn more: https://jestjs.io/docs/getting-started
+
+It's an "integration test" (rather than a unit test) because it will use a real Supabase client to connect to the real project.
+
+```js
+// This is the test suite.
+describe("Suite 1: Task CRUD", () => {
+
+    const supabase = createClient(...);
+    async function createTask(title: string) {
+        // A helper function.
+    }
+
+    // Implement 3 test cases.
+    test("can create a task", async () => { ... });
+    test("can update a task", async () => { ... });
+    test("can delete a task", async () => { ... });
+
+})
+```
+
+In the test, we'll use the Supabase client (which uses the keys in `.env.test.local`) to interact directly with the database to test all of our use cases.
+
+Note that the tests have no set-up or teardown, so any tasks created as part of these tests will pollute the database. We'll fix that later.
+
+### Running Tests
+
+Update package.json to add the `test` command:
+
+```json
+"scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    // ...
+    "test": "jest"
+}
+```
+
+Now you can run the entire test suite like this:
+
+```sh
+# Run the entire test suite.
+npm test
+```
+
+```sh
+# Run a specific test suite (or file).
+npm test tests/integration/1_task_crud.test.ts
+```
+
+```sh
+# Run a single specific test case.
+npm test tests/integration/1_task_crud.test.ts -- -t "can create a task"
+```
