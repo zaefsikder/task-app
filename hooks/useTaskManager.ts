@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Task } from "@/types/models";
+import { createBrowserClient } from '@supabase/ssr'
 import {
   TaskState,
   TasksState,
@@ -13,34 +14,78 @@ interface UseTaskManagerReturn
     TaskOperations,
     TasksOperations {}
 
-const DUMMY_TASK: Task = {
-  task_id: "dummy-task-id",
-  title: "Dummy Task",
-  description: null,
-  completed: false,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  user_id: null,
-  due_date: null,
-  image_url: null,
-  label: null,
-  rank: null,
-};
-
 export function useTaskManager(taskId?: string): UseTaskManagerReturn {
-  const [task, setTask] = useState<Task | null>(DUMMY_TASK);
+  // State for single task management
+  const [task, setTask] = useState<Task | null>(null);
   const [date, setDate] = useState<Date | undefined>(undefined);
-  const [tasks, setTasks] = useState<Task[]>([DUMMY_TASK]);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // State for task list management
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  // Fetch single task
+  useEffect(() => {
+    if (!taskId) return;
+
+    const fetchTask = async () => {
+      try {
+        const { data: task, error } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("task_id", taskId)
+          .single();
+
+        if (error) throw error;
+        setTask(task);
+        setDate(task.due_date ? new Date(task.due_date) : undefined);
+      } catch (error: any) {
+        console.error(`Error fetching task ID ${taskId}:`, error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [taskId]);
+
+  // Fetch all tasks
+  useEffect(() => {
+    if (taskId) return; // Don't fetch all tasks if we're managing a single task
+    fetchTasks();
+  }, []);
 
   // Single task operations
   const updateTask = (updates: Partial<Task>) => {
-    console.log("TODO: Implement updateTask with:", updates);
+    setTask((prev) => (prev ? { ...prev, ...updates } : null));
   };
 
   const saveTask = async (taskToSave?: Task) => {
-    console.log("TODO: Implement saveTask with:", taskToSave || task);
+    try {
+      const taskData = taskToSave || task;
+      if (!taskData) throw new Error("No task data to save");
+
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          ...taskData,
+          due_date: date?.toISOString().split("T")[0],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("task_id", taskData.task_id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Error saving task:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   const uploadImage = async (file: File) => {
@@ -52,27 +97,91 @@ export function useTaskManager(taskId?: string): UseTaskManagerReturn {
   };
 
   // Task list operations
+  const fetchTasks = async () => {
+    try {
+      // TODO: Update with real user_id
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*") 
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setTasks(data || []);
+      setError(null);
+    } catch (error: any) {
+      console.error("Error fetching tasks:", error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const createTask = async (title: string, description: string) => {
-    console.log("TODO: Implement createTask with:", { title, description });
-    return DUMMY_TASK;
+    try {
+
+      // TODO: Update with real user_id
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({ title, description })
+        .select();
+
+      if (error) throw error;
+
+      const taskData = data![0];
+      setTasks([taskData, ...tasks]);
+      setError(null);
+      return taskData;
+    } catch (error: any) {
+      console.error("Error creating task:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   const deleteTask = async (taskIdToDelete: string) => {
-    console.log("TODO: Implement deleteTask with:", taskIdToDelete);
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("task_id", taskIdToDelete);
+
+      if (error) throw error;
+      setTasks(tasks.filter((t) => t.task_id !== taskIdToDelete));
+      setError(null);
+    } catch (error: any) {
+      console.error("Error deleting task:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   const toggleTaskComplete = async (
     taskIdToToggle: string,
     completed: boolean
   ) => {
-    console.log("TODO: Implement toggleTaskComplete with:", {
-      taskIdToToggle,
-      completed,
-    });
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ completed })
+        .eq("task_id", taskIdToToggle);
+
+      if (error) throw error;
+      setTasks(
+        tasks.map((t) =>
+          t.task_id === taskIdToToggle ? { ...t, completed } : t
+        )
+      );
+      setError(null);
+    } catch (error: any) {
+      console.error("Error updating task:", error);
+      setError(error.message);
+      throw error;
+    }
   };
 
   const refreshTasks = async () => {
-    console.log("TODO: Implement refreshTasks");
+    setIsLoading(true);
+    await fetchTasks();
   };
 
   return {
