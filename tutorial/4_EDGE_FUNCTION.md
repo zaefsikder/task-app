@@ -61,7 +61,7 @@ curl -i --location \
     --request POST "$FUNCTION_ENDPOINT" \
     --header "Authorization: Bearer $FUNC_JWT_TOKEN" \
     --header 'Content-Type: application/json' \
-    --data '{"name":"Pixegami!"}'
+    --data '{"title":"New Task From Edge Function"}'
 ```
 
 This should now work.
@@ -70,3 +70,23 @@ This should now work.
 {"message":"Hello Pixegami!!"} ⏎    
 ```
 
+## Implementing Edge Function Logic (Partial)
+
+Now we'll update the edge function `supabase/functions/create-task-with-ai/index.ts` with actual service logic. This will:
+
+* Accept HTTP POST requests with a `title` and a `description`.
+* Check if the request is authorized (JWT token in header).
+* Create a task with the `title` and `description`.
+* Apply a `priority` label to the task (we will update this later to use AI).
+* Update the task with the new label.
+
+Also, notice that this function needs environment variables `SUPABASE_URL` and `SUPABASE_ANON_KEY`. But we didn't need to set them because there's a few secrets that Supabase adds by default:
+
+```text
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_DB_URL
+```
+
+The test in `tests/integration/4_ai.test.ts` will test this entire flow by creating a new user. But until the AI logic is implemented, the test will fail because it's expecting the task to be categorized as `work`, but it's actually hard coded to  `priority`.
