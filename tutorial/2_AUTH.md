@@ -83,3 +83,22 @@ Now that the backend (Supabase, Google) providers are set up, and the database i
 
 - Use `supabase.auth.getSession()` to find the auth session (and therefore user ID).
 - Add `user_id` to our create and fetch queries, so users can only create and view their own tasks—complying with our security policies.
+
+## Implement Route Guard
+
+In this project, we are using 100% client side routing. To enable this, we wrap a component around all our pages to re-direct based on the user's authentication status.
+
+This is implemented in `components/RouteGuard.tsx`, which is then used in our `app/layout.tsx`:
+
+```jsx
+// Wrap all content with the RouteGuard.
+<RouteGuard>{children}</RouteGuard>
+```
+
+The RouteGuard itself defines some routing logic:
+
+- If the page is NOT a **public route** (`/`) then check if the user is authenticated.
+- If the user is NOT authenticated, re-direct to the **default public route** (the login page).
+- If the user IS authenticated, but is visiting the login page, just re-direct them immediately to the **default authenticated route** (which is the `/dashboard`).
+
+Basically, force the user to the login page (index page) if they are not logged in. Otherwise, make the index page re-direct to the dashboard page.
