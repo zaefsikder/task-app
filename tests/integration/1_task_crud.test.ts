@@ -1,24 +1,32 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../test-utils/supabase-client";
+import {
+  TestUser,
+  getOrCreateTestUser,
+  cleanupTestUser,
+  createTask,
+} from "../test-utils/user-testing-utils";
+
+const TEST_USER_ALICE = {
+  name: "Alice (Test User)",
+  email: "test-user.alice@pixegami.io",
+  password: "Test123!@#Alice",
+};
 
 describe("Suite 1: Task CRUD", () => {
+  let testUser: TestUser;
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  beforeAll(async () => {
+    testUser = await getOrCreateTestUser(TEST_USER_ALICE);
+  });
 
-  async function createTask(title: string) {
-    return supabase
-      .from("tasks")
-      .insert({
-        title: title,
-        description: "Test task",
-      })
-      .select();
-  }
+  afterAll(async () => {
+    if (testUser) {
+      await cleanupTestUser(testUser.id);
+    }
+  });
 
   test("can create a task", async () => {
-    const { error, data } = await createTask("Test Task");
+    const { error, data } = await createTask(testUser, "Test Task");
 
     expect(error).toBeFalsy();
     expect(data).toBeTruthy();
@@ -33,11 +41,12 @@ describe("Suite 1: Task CRUD", () => {
     expect(readData).toHaveLength(1);
     const readTask = readData![0];
     expect(readTask.title).toContain("Test Task");
+    expect(readTask.user_id).toBe(testUser.id);
     console.log(`✅ Task created and verified: ${task.task_id}`);
   });
 
   test("can update a task", async () => {
-    const { error, data } = await createTask("Test Task");
+    const { error, data } = await createTask(testUser, "Test Task");
     expect(error).toBeFalsy();
     expect(data).toBeTruthy();
 
@@ -59,7 +68,7 @@ describe("Suite 1: Task CRUD", () => {
   });
 
   test("can delete a task", async () => {
-    const { error, data } = await createTask("Test Task");
+    const { error, data } = await createTask(testUser, "Test Task");
     expect(error).toBeFalsy();
     expect(data).toBeTruthy();
 

@@ -102,3 +102,15 @@ The RouteGuard itself defines some routing logic:
 - If the user IS authenticated, but is visiting the login page, just re-direct them immediately to the **default authenticated route** (which is the `/dashboard`).
 
 Basically, force the user to the login page (index page) if they are not logged in. Otherwise, make the index page re-direct to the dashboard page.
+
+## Testing
+
+The integration tests have been now updated to have utility functions for creating and deleting test users.
+
+You will need the Supabase service client to do this, so update your `.env.test.local` to also have the Supabase secret key, which you can find in your Supabase dashboard: **Project Settings > API > API Keys > `service_role` `secret`**.
+
+```sh
+SUPABASE_SERVICE_KEY="XXXX"
+```
+
+Auth tests are in `tests/integration/2_auth.test.ts`. The CRUD tests were also updated to use a test user, and some utility functions.
