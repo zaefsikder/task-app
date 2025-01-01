@@ -63,3 +63,23 @@ This will create a user in Supabase's built-in **Users** (auth.users) table. Thi
 But we _did_ create a trigger so that a new profile will be created whenever a new `auth.user` is created.
 
 Go to your table and verify that a new profile was automatically created: **Table Editor > Profiles**.
+
+## Implementing Auth Hooks
+
+Now that the backend (Supabase, Google) providers are set up, and the database is updated, we can implement the client side hooks for logging in.
+
+#### Changes `hooks/useAuth.ts`
+
+- Add Supabase client.
+- Implement these hooks using the Supabase client:
+  - handleSignup
+  - handleLogin
+  - handleGoogleLogin
+  - signOut
+  - fetchUserProfile
+- Set up the initial session/state in a `useEffect` hook.
+
+#### Changes `hooks/useTaskManager.ts`
+
+- Use `supabase.auth.getSession()` to find the auth session (and therefore user ID).
+- Add `user_id` to our create and fetch queries, so users can only create and view their own tasks—complying with our security policies.

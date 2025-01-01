@@ -99,10 +99,14 @@ export function useTaskManager(taskId?: string): UseTaskManagerReturn {
   // Task list operations
   const fetchTasks = async () => {
     try {
-      // TODO: Update with real user_id
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const { data, error } = await supabase
         .from("tasks")
-        .select("*") 
+        .select("*")
+        .eq("user_id", session!.user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -118,11 +122,14 @@ export function useTaskManager(taskId?: string): UseTaskManagerReturn {
 
   const createTask = async (title: string, description: string) => {
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       // TODO: Update with real user_id
       const { data, error } = await supabase
         .from("tasks")
-        .insert({ title, description })
+        .insert({ title, description, user_id: session!.user.id })
         .select();
 
       if (error) throw error;

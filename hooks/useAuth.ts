@@ -1,81 +1,153 @@
 import { useState, useEffect } from "react";
 import { User } from "@/types/models";
 import { UseAuthReturn } from "@/types/auth";
-import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 
 export function useAuth(): UseAuthReturn {
-  const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-  // Dummy state values
-  const dummyUser: User = {
-    user_id: "dummy-user-id",
-    email: "dummy@example.com",
-    name: "Dummy User",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    stripe_customer_id: null,
-    subscription_plan: "free",
-    tasks_limit: 100,
-    tasks_created: 0,
-  };
-
-  // State with dummy values
-  const [session, setSession] = useState<any>({
-    user: { id: "dummy-session-id" },
-  });
-  const [user, setUser] = useState<User | null>(dummyUser);
+  // State
+  const [session, setSession] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
 
-  // Placeholder functions
-  const clearError = () => {
-    console.log("TODO: Implement clearError");
-    setError(null);
+  // Helper functions
+  const clearError = () => setError(null);
+
+  const fetchUserProfile = async (userId: string, userEmail: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (error) throw error;
+
+      setUser({
+        ...profile,
+        email: userEmail,
+      });
+
+    } catch (error) {
+      console.error("Critical error fetching user profile:", error);
+      await signOut();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const updateSessionState = async (newSession: any) => {
+    setSession(newSession);
+    setIsLoggedIn(!!newSession);
+
+    if (newSession?.user) {
+      setIsLoading(true);
+      await fetchUserProfile(newSession.user.id, newSession.user.email);
+    } else {
+      setUser(null);
+      setIsLoading(false);
+    }
+  };
+
+  // Auth methods
   const signOut = async () => {
-    console.log("TODO: Implement signOut");
-    setSession(null);
-    setUser(null);
-    setIsLoggedIn(false);
-    setIsLoading(false);
-    router.push("/");
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      setIsLoggedIn(false);
+      setEmail("");
+      setPassword("");
+      window.localStorage.removeItem("supabase.auth.token");
+    } catch (error: any) {
+      setError(error.message);
+      console.error("Error signing out:", error);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("TODO: Implement handleLogin:", { email, password });
-    setIsLoggedIn(true);
-    setUser(dummyUser);
-    setIsLoading(false);
-    router.push("/dashboard");
+    clearError();
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) setError(error.message);
+      console.log("✅ User logged in:", email, user);
+    } catch (error: any) {
+      setError(error.message);
+      console.error("Error logging in:", error);
+    }
   };
 
   const handleGoogleLogin = async () => {
-    console.log("TODO: Implement handleGoogleLogin");
-    setIsLoggedIn(true);
-    setUser(dummyUser);
-    setIsLoading(false);
-    router.push("/dashboard");
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+    } catch (error: any) {
+      setError(error.message);
+      console.error("Error with Google login:", error);
+    }
   };
 
   const handleSignup = async () => {
-    console.log("TODO: Implement handleSignup:", { email, password });
-    setIsLoggedIn(true);
-    setUser(dummyUser);
-    setIsLoading(false);
-    router.push("/dashboard");
+    clearError();
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setError("Please check your email to confirm your account");
+      }
+    } catch (error: any) {
+      setError(error.message);
+      console.error("Error signing up:", error);
+    }
   };
 
-  // Mock initialization
+  // Initialize auth state
   useEffect(() => {
-    console.log("TODO: Implement auth initialization");
-    setIsLoggedIn(true);
-    setUser(dummyUser);
+    const initAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await updateSessionState(session);
+      } catch (error: any) {
+        console.error("Error initializing auth:", error);
+        setError(error.message);
+        await signOut();
+      }
+    };
+
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateSessionState(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return {
