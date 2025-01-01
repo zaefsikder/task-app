@@ -134,3 +134,14 @@ const nextConfig = {
 ```
 
 Now, on your development server, you should be able to upload, view and remove images. You should also verify that images are deleted when its parent task is deleted.
+
+## Testing
+
+In our integration test `tests/integration/3_storage.test.ts`, we are explicitly testing two cases:
+
+- A user can upload an image to a task they created. And if they delete that task, the image is deleted too.
+- A user cannot upload an image to someone else's task.
+
+```sh
+npm test tests/integration/3_storage.test.ts
+```
