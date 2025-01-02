@@ -51,3 +51,20 @@ This is a simple, straightforward trigger. But it does have some opportunities f
 
 One easy solution is to also make the trigger reset `tasks_created` to 0. But that would that cause any secondary issues?
 
+## Testing
+
+New integration tests for task limits and premium/free tiers are created in `tests/integration/5_task_limits.test.ts`. We want to test these specific cases:
+
+* Free user can create tasks (when within limit).
+* Free user cannot exceed free task limit (100).
+* Premium user can exceed free tier limit.
+* Premium user cannot exceed premium task limit (10,000).
+
+We've also added a utility file (`tests/test-utils/limit-testing-utils.ts`) to override values for user subscriptions and task usage (requires the Supabase service role).
+
+```sh
+# Run the test suite.
+npm test tests/integration/5_task_limits.test.ts
+```
+
+This far into the application, I find it's easier to validate application logic via integration tests first. Once you know it's working, then you can implement it with the rest of the app.
