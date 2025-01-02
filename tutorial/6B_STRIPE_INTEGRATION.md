@@ -89,3 +89,31 @@ supabase secrets set STRIPE_SECRET_KEY=sk_test_xxx
 supabase secrets set STRIPE_PRICE_ID=price_xxx
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
+
+## Update `useSubscription` Hook
+
+The frontend integration uses the `useSubscription` hook to manage subscriptions (via our `create-stripe-session` edge function):
+
+```tsx
+const manageSubscription = async (accessToken: string) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-stripe-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  const { url, error } = await response.json();
+  if (error) throw new Error(error);
+  
+  window.location.href = url;
+};
+```
+
+This redirects users to either:
+- Stripe Checkout (new subscribers)
+- Customer Portal (existing subscribers)
