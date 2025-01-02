@@ -24,19 +24,23 @@ export function useAuth(): UseAuthReturn {
 
   const fetchUserProfile = async (userId: string, userEmail: string) => {
     try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      const [profileResponse, usageResponse] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).single(),
+        supabase
+          .from("usage_tracking")
+          .select("tasks_created")
+          .eq("user_id", userId)
+          .eq("year_month", new Date().toISOString().slice(0, 7))
+          .maybeSingle(),
+      ]);
 
-      if (error) throw error;
+      if (profileResponse.error) throw profileResponse.error;
 
       setUser({
-        ...profile,
+        ...profileResponse.data,
         email: userEmail,
+        tasks_created: usageResponse.data?.tasks_created || 0,
       });
-
     } catch (error) {
       console.error("Critical error fetching user profile:", error);
       await signOut();

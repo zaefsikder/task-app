@@ -68,3 +68,46 @@ npm test tests/integration/5_task_limits.test.ts
 ```
 
 This far into the application, I find it's easier to validate application logic via integration tests first. Once you know it's working, then you can implement it with the rest of the app.
+
+## Update `useAuth` Hook
+
+The `` hook is responsible for fetching data about a user's profile (include their usage and limits). We need to update it to get data from the new table as well.
+
+```tsx
+// Query the profile and usage data in parallel.
+const [profileResponse, usageResponse] = await Promise.all([
+    supabase.from("profiles").select("*").eq("user_id", userId).single(),
+    supabase
+        .from("usage_tracking")
+        .select("tasks_created")
+        .eq("user_id", userId)
+        .eq("year_month", new Date().toISOString().slice(0, 7))
+        .maybeSingle(),
+]);
+```
+
+```tsx
+// Combine them to display the profile and curren usage.
+setUser({
+    ...profileResponse.data,
+    email: userEmail,
+    tasks_created: usageResponse.data?.tasks_created || 0,
+});
+```
+
+Now when you go back and test the app on `localhost` and go to the **Profile** page you should see the task usage (tasks created) updated whenever you create a new task.
+
+If you want to test the UX for when a user is at their limit, just comment out the `afterAll` method in `tests/integration/5_task_limits.test.ts` and run a single test to create a user with exceeded limits.
+
+```sh
+npm test tests/integration/5_task_limits.test.ts -- -t "free user cannot exceed task limit"
+```
+
+Then just go and log in using the test user's credential.
+
+```tsx
+const TEST_USER_FRANK = {
+  email: "test-user.frank@pixegami.io",
+  password: "Test123!@#Frank",
+};
+```
