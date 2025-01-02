@@ -117,3 +117,25 @@ const manageSubscription = async (accessToken: string) => {
 This redirects users to either:
 - Stripe Checkout (new subscribers)
 - Customer Portal (existing subscribers)
+
+## Integration Testing
+
+Tests are implemented in `tests/integration/6_payments.test.ts`. They test against your real webhook endpoint, by sending synthetic Stripe events to mimic checkout and subscription deletion. 
+
+Only two cases are tested (but it's already quite a complex flow):
+
+* A checkout event will upgrade a user to premium.
+* A subscription deleted event will downgrade a user to free.
+
+In our tests, we will need the Stripe library, so let's install it.
+
+```sh
+npm install stripe --save-dev
+```
+
+Run the tests:
+```bash
+npm test tests/integration/6_payments.test.ts
+```
+
+If tests fail with `Expected: 200, Received: 401` then you check if you've disabled `Enforce JWT Verification` for your edge function.
