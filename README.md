@@ -127,6 +127,14 @@ stripe billing_portal configurations create \
    - Endpoint: `https://[PROJECT_ID].supabase.co/functions/v1/stripe-webhook`
    - Events: `checkout.session.completed`, `customer.subscription.deleted`, `customer.subscription.updated`
 
+5. Set up Stripe secret in Supabase PostgresSQL vault. Go into your Supabase dashboard, to go **SQL Editor** then run this command (replacing your secret key):
+
+```sql
+insert into vault.secrets (name, secret)
+select 'stripe', 'sk_test_xxx'
+returning key_id;
+```
+
 ### Required Environment Variables
 
 Add to `.env.local` and `.env.test.local`:
